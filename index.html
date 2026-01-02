@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>H+ POWER Battery Info</title>
+<style>
+body{font-family:Arial;background:#f2f2f2;margin:0}
+header{background:#111;color:#fff;padding:20px;text-align:center}
+.container{max-width:900px;margin:auto;padding:20px}
+form,.battery{background:#fff;padding:20px;margin-bottom:20px;border-radius:6px}
+input,button{width:100%;padding:10px;margin-top:10px}
+img{max-width:220px}
+table{width:100%;border-collapse:collapse}
+td{padding:6px;border-bottom:1px solid #ddd}
+.delete{background:#c0392b;color:#fff;border:none;margin-top:10px}
+.hide{display:none}
+</style>
+</head>
+<body>
+
+<header>
+<h1>H+ POWER</h1>
+<p>Battery Information (View Only for Customer)</p>
+</header>
+
+<div class="container">
+
+<!-- OWNER ONLY -->
+<form id="form">
+<h2>Owner Panel</h2>
+<input id="model" placeholder="Battery Model" required>
+<input id="cell" placeholder="Cell Brand" required>
+<input id="bms" placeholder="BMS Brand" required>
+<input id="serial" placeholder="Serial / ID" required>
+<input id="date" type="date" required>
+<input id="image" type="file" accept="image/*" required>
+<button>Add Battery</button>
+</form>
+
+<div id="list"></div>
+
+</div>
+
+<script>
+const params=new URLSearchParams(location.search);
+const viewId=params.get("id");
+const isCustomer = !!viewId;
+
+let batteries=JSON.parse(localStorage.getItem("batteries"))||[];
+const list=document.getElementById("list");
+const form=document.getElementById("form");
+
+if(isCustomer){
+  form.remove(); // ❌ No add form
+}
+
+function save(){
+  if(isCustomer) return; // 🔒 customer can't save
+  localStorage.setItem("batteries",JSON.stringify(batteries));
+}
+
+function render(){
+list.innerHTML="";
+batteries.forEach((b,i)=>{
+  if(isCustomer && b.serial!==viewId) return;
+
+  const d=document.createElement("div");
+  d.className="battery";
+  d.innerHTML=`
+    <img src="${b.image}">
+    <table>
+      <tr><td><b>Model</b></td><td>${b.model}</td></tr>
+      <tr><td><b>Cell Brand</b></td><td>${b.cell}</td></tr>
+      <tr><td><b>BMS Brand</b></td><td>${b.bms}</td></tr>
+      <tr><td><b>Serial</b></td><td>${b.serial}</td></tr>
+      <tr><td><b>Install Date</b></td><td>${b.date}</td></tr>
+    </table>
+    ${!isCustomer ? `
+      <p><b>NFC Link:</b><br>
+      ${location.origin+location.pathname}?id=${b.serial}</p>
+      <button class="delete" onclick="del(${i})">Delete</button>
+    ` : ""}
+  `;
+  list.appendChild(d);
+});
+}
+
+function del(i){
+  if(isCustomer) return;
+  if(confirm("Delete battery?")){
+    batteries.splice(i,1);
+    save();render();
+  }
+}
+
+form?.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(isCustomer) return;
+
+  const r=new FileReader();
+  r.onload=()=>{
+    batteries.unshift({
+      model:model.value,
+      cell:cell.value,
+      bms:bms.value,
+      serial:serial.value,
+      date:date.value,
+      image:r.result
+    });
+    save();render();form.reset();
+  };
+  r.readAsDataURL(image.files[0]);
+});
+
+render();
+</script>
+
+</body>
+</html>
